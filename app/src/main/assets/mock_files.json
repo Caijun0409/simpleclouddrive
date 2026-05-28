@@ -1,0 +1,42 @@
+[
+  {
+    "fileId": "folder_documents",
+    "name": "Documents",
+    "size": 0,
+    "path": "/Documents",
+    "parentId": null,
+    "type": "FOLDER",
+    "timestamp": 1717200000000,
+    "modifiedAt": 1717200000000
+  },
+  {
+    "fileId": "txt_readme",
+    "name": "readme.txt",
+    "size": 2048,
+    "path": "/readme.txt",
+    "parentId": null,
+    "type": "TXT",
+    "timestamp": 1717200600000,
+    "modifiedAt": 1717200600000
+  },
+  {
+    "fileId": "video_training",
+    "name": "training.mp4",
+    "size": 52428800,
+    "path": "/training.mp4",
+    "parentId": null,
+    "type": "VIDEO",
+    "timestamp": 1717201200000,
+    "modifiedAt": 1717201200000
+  },
+  {
+    "fileId": "txt_notes",
+    "name": "notes.txt",
+    "size": 4096,
+    "path": "/Documents/notes.txt",
+    "parentId": "folder_documents",
+    "type": "TXT",
+    "timestamp": 1717201800000,
+    "modifiedAt": 1717201800000
+  }
+]

@@ -7,17 +7,21 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.simpleclouddrive.domain.repository.FileRepository
 import com.example.simpleclouddrive.navigation.AppNavGraph
 import com.example.simpleclouddrive.navigation.BottomNavItem
 
 @Composable
-fun SimpleCloudApp() {
+fun SimpleCloudApp(
+    fileRepository: FileRepository
+) {
     val navController = rememberNavController()
     val bottomNavItems = listOf(
         BottomNavItem.CloudDrive,
@@ -27,6 +31,10 @@ fun SimpleCloudApp() {
     val currentDestination = navBackStackEntry?.destination
     val shouldShowBottomBar = bottomNavItems.any { item ->
         currentDestination.isInHierarchy(item.route)
+    }
+
+    LaunchedEffect(fileRepository) {
+        fileRepository.initializeIfNeeded()
     }
 
     Scaffold(
