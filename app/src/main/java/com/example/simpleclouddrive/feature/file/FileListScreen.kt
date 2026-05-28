@@ -1,5 +1,7 @@
 package com.example.simpleclouddrive.feature.file
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,6 +18,7 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.InsertDriveFile
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.UploadFile
 import androidx.compose.material.icons.outlined.Videocam
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -27,8 +30,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -61,14 +66,33 @@ fun FileListRoute(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+    val openDocumentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+        onResult = { uri ->
+            if (uri != null) {
+                viewModel.uploadFile(uri)
+            }
+        }
+    )
 
     BackHandler(enabled = uiState.currentFolderId != null) {
         viewModel.navigateUp()
     }
 
+    LaunchedEffect(viewModel) {
+        viewModel.message.collect { message ->
+            snackbarHostState.showSnackbar(message)
+        }
+    }
+
     FileListScreen(
         uiState = uiState,
         snackbarHostState = snackbarHostState,
+        onUploadClick = {
+            openDocumentLauncher.launch(
+                arrayOf("text/plain", "video/*", "*/*")
+            )
+        },
         onNavigateUp = { viewModel.navigateUp() },
         onFolderClick = viewModel::openFolder,
         onTxtClick = { file -> onOpenReader(file.fileId) },
@@ -86,6 +110,7 @@ fun FileListRoute(
 fun FileListScreen(
     uiState: FileUiState,
     snackbarHostState: SnackbarHostState,
+    onUploadClick: () -> Unit,
     onNavigateUp: () -> Unit,
     onFolderClick: (CloudFile) -> Unit,
     onTxtClick: (CloudFile) -> Unit,
@@ -111,6 +136,15 @@ fun FileListScreen(
                                 contentDescription = "返回上一级"
                             )
                         }
+                    }
+                },
+                actions = {
+                    TextButton(onClick = onUploadClick) {
+                        Icon(
+                            imageVector = Icons.Outlined.UploadFile,
+                            contentDescription = null
+                        )
+                        Text(text = "上传")
                     }
                 }
             )

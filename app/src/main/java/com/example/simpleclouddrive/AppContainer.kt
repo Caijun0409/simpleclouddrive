@@ -3,6 +3,7 @@ package com.example.simpleclouddrive
 import android.content.Context
 import androidx.room.Room
 import com.example.simpleclouddrive.data.local.AppDatabase
+import com.example.simpleclouddrive.data.local.FileStorageManager
 import com.example.simpleclouddrive.data.remote.FakeCloudApi
 import com.example.simpleclouddrive.data.repository.FileRepositoryImpl
 import com.example.simpleclouddrive.domain.repository.FileRepository
@@ -17,9 +18,12 @@ class AppContainer(context: Context) {
     ).build()
 
     private val fakeCloudApi: FakeCloudApi = FakeCloudApi(appContext)
+    private val fileStorageManager: FileStorageManager = FileStorageManager(appContext)
 
     val fileRepository: FileRepository = FileRepositoryImpl(
         cloudFileDao = database.cloudFileDao(),
-        fakeCloudApi = fakeCloudApi
+        recentTransferDao = database.recentTransferDao(),
+        fakeCloudApi = fakeCloudApi,
+        fileStorageManager = fileStorageManager
     )
 }

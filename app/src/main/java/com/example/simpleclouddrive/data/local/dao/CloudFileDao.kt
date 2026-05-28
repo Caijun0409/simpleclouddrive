@@ -25,5 +25,8 @@ interface CloudFileDao {
     suspend fun getFileById(fileId: String): CloudFileEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(file: CloudFileEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(files: List<CloudFileEntity>)
 }
