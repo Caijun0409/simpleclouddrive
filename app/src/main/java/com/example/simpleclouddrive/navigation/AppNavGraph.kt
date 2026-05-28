@@ -1,5 +1,6 @@
 package com.example.simpleclouddrive.navigation
 
+import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
@@ -7,7 +8,8 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import com.example.simpleclouddrive.feature.file.FileListScreen
+import com.example.simpleclouddrive.domain.repository.FileRepository
+import com.example.simpleclouddrive.feature.file.FileListRoute
 import com.example.simpleclouddrive.feature.home.CloudHomeScreen
 import com.example.simpleclouddrive.feature.reader.ReaderScreen
 import com.example.simpleclouddrive.feature.share.ShareFileScreen
@@ -17,11 +19,14 @@ object AppRoute {
     const val FileList = "file_list"
     const val Reader = "reader/{fileId}"
     const val Share = "share/{shareId}"
+
+    fun reader(fileId: String): String = "reader/${Uri.encode(fileId)}"
 }
 
 @Composable
 fun AppNavGraph(
     navController: NavHostController,
+    fileRepository: FileRepository,
     modifier: Modifier = Modifier
 ) {
     NavHost(
@@ -33,7 +38,12 @@ fun AppNavGraph(
             CloudHomeScreen()
         }
         composable(AppRoute.FileList) {
-            FileListScreen()
+            FileListRoute(
+                fileRepository = fileRepository,
+                onOpenReader = { fileId ->
+                    navController.navigate(AppRoute.reader(fileId))
+                }
+            )
         }
         composable(
             route = AppRoute.Reader,

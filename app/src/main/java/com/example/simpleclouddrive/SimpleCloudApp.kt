@@ -64,6 +64,7 @@ fun SimpleCloudApp(
     ) { innerPadding ->
         AppNavGraph(
             navController = navController,
+            fileRepository = fileRepository,
             modifier = Modifier.padding(innerPadding)
         )
     }
