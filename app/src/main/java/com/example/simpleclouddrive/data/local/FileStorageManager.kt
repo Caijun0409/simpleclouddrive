@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
 import java.io.File
+import java.nio.charset.StandardCharsets
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -17,11 +18,7 @@ class FileStorageManager(
         fileId: String,
         displayName: String
     ): String = withContext(ioDispatcher) {
-        val cloudDir = File(context.filesDir, CLOUD_DIR_NAME).apply {
-            if (!exists()) {
-                mkdirs()
-            }
-        }
+        val cloudDir = getCloudDir()
         val targetFile = File(cloudDir, "${fileId}_${displayName.sanitizeFileName()}")
         context.contentResolver.openInputStream(uri).use { inputStream ->
             requireNotNull(inputStream) { "无法读取所选文件" }
@@ -29,6 +26,17 @@ class FileStorageManager(
                 inputStream.copyTo(outputStream)
             }
         }
+        targetFile.absolutePath
+    }
+
+    suspend fun writeTextToPrivateStorage(
+        fileId: String,
+        displayName: String,
+        content: String
+    ): String = withContext(ioDispatcher) {
+        val cloudDir = getCloudDir()
+        val targetFile = File(cloudDir, "${fileId}_${displayName.sanitizeFileName()}")
+        targetFile.writeText(content, StandardCharsets.UTF_8)
         targetFile.absolutePath
     }
 
@@ -77,6 +85,14 @@ class FileStorageManager(
 
     private fun String.sanitizeFileName(): String {
         return replace(Regex("""[\\/:*?"<>|]"""), "_")
+    }
+
+    private fun getCloudDir(): File {
+        return File(context.filesDir, CLOUD_DIR_NAME).apply {
+            if (!exists()) {
+                mkdirs()
+            }
+        }
     }
 
     private companion object {

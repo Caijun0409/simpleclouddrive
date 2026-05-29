@@ -52,7 +52,8 @@ fun AppNavGraph(
             )
         ) { backStackEntry ->
             ReaderScreen(
-                fileId = backStackEntry.arguments?.getString("fileId").orEmpty()
+                fileId = backStackEntry.arguments?.getString("fileId").orEmpty(),
+                fileRepository = fileRepository
             )
         }
         composable(

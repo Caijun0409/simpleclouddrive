@@ -99,7 +99,7 @@ fun FileListRoute(
         snackbarHostState = snackbarHostState,
         onUploadClick = {
             openDocumentLauncher.launch(
-                arrayOf("text/plain", "video/*", "*/*")
+                arrayOf("text/plain", "application/octet-stream", "video/*", "*/*")
             )
         },
         onNavigateUp = { viewModel.navigateUp() },

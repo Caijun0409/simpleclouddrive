@@ -13,6 +13,8 @@ interface FileRepository {
 
     suspend fun uploadLocalFile(uri: Uri, parentId: String?): CloudFile
 
+    suspend fun readTextFile(fileId: String): String
+
     suspend fun renameFile(fileId: String, newName: String)
 
     suspend fun deleteFile(fileId: String)
