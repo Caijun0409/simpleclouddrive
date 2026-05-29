@@ -23,6 +23,8 @@ interface FileRepository {
 
     suspend fun readTextFile(fileId: String): String
 
+    suspend fun markFileBrowsed(fileId: String)
+
     suspend fun createShareLink(fileId: String): String
 
     suspend fun getSharedFiles(shareId: String): List<CloudFile>

@@ -58,6 +58,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.simpleclouddrive.core.ui.component.EmptyView
 import com.example.simpleclouddrive.core.ui.component.ErrorView
 import com.example.simpleclouddrive.core.ui.component.LoadingView
+import com.example.simpleclouddrive.core.util.VideoPlayerUtil
 import com.example.simpleclouddrive.domain.model.CloudFile
 import com.example.simpleclouddrive.domain.model.FileType
 import com.example.simpleclouddrive.domain.repository.FileRepository
@@ -79,6 +80,7 @@ fun FileListRoute(
     val dialogState by viewModel.dialogState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
     val openDocumentLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
         onResult = { uri ->
@@ -109,9 +111,18 @@ fun FileListRoute(
         onNavigateUp = { viewModel.navigateUp() },
         onFolderClick = viewModel::openFolder,
         onTxtClick = { file -> onOpenReader(file.fileId) },
-        onVideoClick = {
+        onVideoClick = { file ->
             coroutineScope.launch {
-                snackbarHostState.showSnackbar("准备打开视频")
+                runCatching {
+                    fileRepository.markFileBrowsed(file.fileId)
+                }.onFailure { throwable ->
+                    snackbarHostState.showSnackbar(throwable.message ?: "打开视频失败")
+                    return@launch
+                }
+                VideoPlayerUtil.openVideo(context, file)
+                    .onFailure { throwable ->
+                        snackbarHostState.showSnackbar(throwable.message ?: "打开视频失败")
+                    }
             }
         },
         onShareClick = viewModel::shareFile,

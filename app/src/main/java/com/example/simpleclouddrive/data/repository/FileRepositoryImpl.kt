@@ -149,6 +149,18 @@ class FileRepositoryImpl(
         }
     }
 
+    override suspend fun markFileBrowsed(fileId: String) {
+        withContext(ioDispatcher) {
+            val file = cloudFileDao.getFileById(fileId) ?: error("文件不存在")
+            recentBrowseDao.upsert(
+                RecentBrowseEntity(
+                    fileId = file.fileId,
+                    browseTime = System.currentTimeMillis()
+                )
+            )
+        }
+    }
+
     override suspend fun createShareLink(fileId: String): String {
         return withContext(ioDispatcher) {
             cloudFileDao.getFileById(fileId) ?: error("文件不存在")

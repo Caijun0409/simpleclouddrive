@@ -24,12 +24,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.simpleclouddrive.core.ui.component.EmptyView
 import com.example.simpleclouddrive.core.ui.component.ErrorView
 import com.example.simpleclouddrive.core.ui.component.LoadingView
+import com.example.simpleclouddrive.core.util.VideoPlayerUtil
 import com.example.simpleclouddrive.domain.model.CloudFile
 import com.example.simpleclouddrive.domain.model.FileType
 import com.example.simpleclouddrive.domain.repository.FileRepository
@@ -52,6 +54,7 @@ fun ShareFileScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     ShareFileScreen(
         uiState = uiState,
@@ -60,7 +63,16 @@ fun ShareFileScreen(
             when (file.type) {
                 FileType.TXT -> onOpenReader(file.fileId)
                 FileType.VIDEO -> coroutineScope.launch {
-                    snackbarHostState.showSnackbar("视频打开功能待实现")
+                    runCatching {
+                        fileRepository.markFileBrowsed(file.fileId)
+                    }.onFailure { throwable ->
+                        snackbarHostState.showSnackbar(throwable.message ?: "打开视频失败")
+                        return@launch
+                    }
+                    VideoPlayerUtil.openVideo(context, file)
+                        .onFailure { throwable ->
+                            snackbarHostState.showSnackbar(throwable.message ?: "打开视频失败")
+                        }
                 }
                 FileType.FOLDER -> coroutineScope.launch {
                     snackbarHostState.showSnackbar("暂不支持从分享页直接进入文件夹")
