@@ -9,6 +9,14 @@ interface FileRepository {
 
     fun observeFiles(parentId: String?): Flow<List<CloudFile>>
 
+    fun observeFileCount(): Flow<Int>
+
+    fun observeUsedBytes(): Flow<Long>
+
+    fun observeRecentTransferFiles(limit: Int = 10): Flow<List<CloudFile>>
+
+    fun observeRecentBrowseFiles(limit: Int = 10): Flow<List<CloudFile>>
+
     suspend fun getFileById(fileId: String): CloudFile?
 
     suspend fun uploadLocalFile(uri: Uri, parentId: String?): CloudFile

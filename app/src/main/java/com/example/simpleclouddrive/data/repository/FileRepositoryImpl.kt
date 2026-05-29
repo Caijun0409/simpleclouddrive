@@ -57,6 +57,26 @@ class FileRepositoryImpl(
         }
     }
 
+    override fun observeFileCount(): Flow<Int> {
+        return cloudFileDao.observeFileCount()
+    }
+
+    override fun observeUsedBytes(): Flow<Long> {
+        return cloudFileDao.observeUsedBytes()
+    }
+
+    override fun observeRecentTransferFiles(limit: Int): Flow<List<CloudFile>> {
+        return recentTransferDao.observeRecentTransferFiles(limit).map { entities ->
+            entities.map { entity -> entity.toDomain() }
+        }
+    }
+
+    override fun observeRecentBrowseFiles(limit: Int): Flow<List<CloudFile>> {
+        return recentBrowseDao.observeRecentBrowseFiles(limit).map { entities ->
+            entities.map { entity -> entity.toDomain() }
+        }
+    }
+
     override suspend fun getFileById(fileId: String): CloudFile? {
         return withContext(ioDispatcher) {
             cloudFileDao.getFileById(fileId)?.toDomain()

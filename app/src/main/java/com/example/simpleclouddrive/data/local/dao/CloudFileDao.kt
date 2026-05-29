@@ -12,6 +12,12 @@ interface CloudFileDao {
     @Query("SELECT COUNT(*) FROM cloud_file")
     suspend fun count(): Int
 
+    @Query("SELECT COUNT(*) FROM cloud_file")
+    fun observeFileCount(): Flow<Int>
+
+    @Query("SELECT COALESCE(SUM(size), 0) FROM cloud_file WHERE type != 'FOLDER'")
+    fun observeUsedBytes(): Flow<Long>
+
     @Query(
         """
         SELECT * FROM cloud_file

@@ -35,7 +35,21 @@ fun AppNavGraph(
         modifier = modifier
     ) {
         composable(AppRoute.CloudHome) {
-            CloudHomeScreen()
+            CloudHomeScreen(
+                fileRepository = fileRepository,
+                onOpenReader = { fileId ->
+                    navController.navigate(AppRoute.reader(fileId))
+                },
+                onOpenFilesRoot = {
+                    navController.navigate(AppRoute.FileList) {
+                        popUpTo(navController.graph.startDestinationId) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
+            )
         }
         composable(AppRoute.FileList) {
             FileListRoute(
