@@ -30,6 +30,9 @@ interface CloudFileDao {
     @Query("SELECT * FROM cloud_file WHERE fileId = :fileId LIMIT 1")
     suspend fun getFileById(fileId: String): CloudFileEntity?
 
+    @Query("SELECT * FROM cloud_file WHERE fileId IN (:fileIds)")
+    suspend fun getFilesByIds(fileIds: List<String>): List<CloudFileEntity>
+
     @Query("SELECT * FROM cloud_file WHERE parentId = :parentId")
     suspend fun getFilesByParentId(parentId: String): List<CloudFileEntity>
 

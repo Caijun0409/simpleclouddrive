@@ -2,13 +2,16 @@ package com.example.simpleclouddrive.data.repository
 
 import android.net.Uri
 import android.util.Log
+import com.example.simpleclouddrive.core.util.DeepLinkUtil
 import com.example.simpleclouddrive.data.local.FileStorageManager
 import com.example.simpleclouddrive.data.local.dao.CloudFileDao
 import com.example.simpleclouddrive.data.local.dao.RecentBrowseDao
 import com.example.simpleclouddrive.data.local.dao.RecentTransferDao
+import com.example.simpleclouddrive.data.local.dao.ShareRecordDao
 import com.example.simpleclouddrive.data.local.entity.CloudFileEntity
 import com.example.simpleclouddrive.data.local.entity.RecentBrowseEntity
 import com.example.simpleclouddrive.data.local.entity.RecentTransferEntity
+import com.example.simpleclouddrive.data.local.entity.ShareRecordEntity
 import com.example.simpleclouddrive.data.mapper.toDomain
 import com.example.simpleclouddrive.data.mapper.toEntity
 import com.example.simpleclouddrive.data.remote.FakeCloudApi
@@ -26,15 +29,22 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 class FileRepositoryImpl(
     private val cloudFileDao: CloudFileDao,
     private val recentBrowseDao: RecentBrowseDao,
     private val recentTransferDao: RecentTransferDao,
+    private val shareRecordDao: ShareRecordDao,
     private val fakeCloudApi: FakeCloudApi,
     private val fileStorageManager: FileStorageManager,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : FileRepository {
+    private val json = Json {
+        ignoreUnknownKeys = true
+    }
+
     override suspend fun initializeIfNeeded() {
         withContext(ioDispatcher) {
             val fileCount = cloudFileDao.count()
@@ -136,6 +146,38 @@ class FileRepositoryImpl(
 
             val bytes = diskFile.readBytes()
             decodeText(bytes)
+        }
+    }
+
+    override suspend fun createShareLink(fileId: String): String {
+        return withContext(ioDispatcher) {
+            cloudFileDao.getFileById(fileId) ?: error("文件不存在")
+            val shareId = UUID.randomUUID().toString()
+            shareRecordDao.upsert(
+                ShareRecordEntity(
+                    shareId = shareId,
+                    fileIdsJson = json.encodeToString(listOf(fileId)),
+                    createdAt = System.currentTimeMillis()
+                )
+            )
+            DeepLinkUtil.buildShareLink(shareId)
+        }
+    }
+
+    override suspend fun getSharedFiles(shareId: String): List<CloudFile> {
+        return withContext(ioDispatcher) {
+            val shareRecord = shareRecordDao.getShareRecord(shareId) ?: error("分享链接无效")
+            val fileIds = runCatching {
+                json.decodeFromString<List<String>>(shareRecord.fileIdsJson)
+            }.getOrElse {
+                error("分享记录损坏")
+            }
+            if (fileIds.isEmpty()) {
+                return@withContext emptyList()
+            }
+
+            val fileMap = cloudFileDao.getFilesByIds(fileIds).associateBy { entity -> entity.fileId }
+            fileIds.mapNotNull { fileId -> fileMap[fileId]?.toDomain() }
         }
     }
 

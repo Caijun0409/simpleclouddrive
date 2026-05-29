@@ -24,6 +24,7 @@ class AppContainer(context: Context) {
         cloudFileDao = database.cloudFileDao(),
         recentBrowseDao = database.recentBrowseDao(),
         recentTransferDao = database.recentTransferDao(),
+        shareRecordDao = database.shareRecordDao(),
         fakeCloudApi = fakeCloudApi,
         fileStorageManager = fileStorageManager
     )

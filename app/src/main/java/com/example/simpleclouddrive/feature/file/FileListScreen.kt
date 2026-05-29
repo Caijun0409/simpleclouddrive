@@ -1,5 +1,6 @@
 package com.example.simpleclouddrive.feature.file
 
+import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.BackHandler
@@ -46,6 +47,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -110,7 +114,7 @@ fun FileListRoute(
                 snackbarHostState.showSnackbar("准备打开视频")
             }
         },
-        onShareClick = viewModel::showSharePlaceholder,
+        onShareClick = viewModel::shareFile,
         onRenameClick = viewModel::showRenameDialog,
         onMoveClick = viewModel::showMoveDialog,
         onDeleteClick = viewModel::showDeleteDialog,
@@ -264,7 +268,68 @@ private fun FileOperationDialog(
             onConfirmMove = onConfirmMove,
             onDismiss = onDismiss
         )
+        is FileDialogState.Share -> ShareDialog(
+            dialogState = dialogState,
+            onDismiss = onDismiss
+        )
     }
+}
+
+@Composable
+private fun ShareDialog(
+    dialogState: FileDialogState.Share,
+    onDismiss: () -> Unit
+) {
+    val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("分享链接") },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = dialogState.file.name,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = dialogState.link,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, dialogState.link)
+                    }
+                    context.startActivity(Intent.createChooser(sendIntent, "分享链接"))
+                }
+            ) {
+                Text("系统分享")
+            }
+        },
+        dismissButton = {
+            Row {
+                TextButton(
+                    onClick = {
+                        clipboardManager.setText(AnnotatedString(dialogState.link))
+                    }
+                ) {
+                    Text("复制")
+                }
+                TextButton(onClick = onDismiss) {
+                    Text("关闭")
+                }
+            }
+        }
+    )
 }
 
 @Composable

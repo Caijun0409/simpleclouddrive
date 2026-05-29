@@ -104,9 +104,18 @@ class FileListViewModel(
         }
     }
 
-    fun showSharePlaceholder(file: CloudFile) {
+    fun shareFile(file: CloudFile) {
         viewModelScope.launch {
-            _message.emit("分享功能待实现：${file.name}")
+            runCatching {
+                fileRepository.createShareLink(file.fileId)
+            }.onSuccess { link ->
+                _dialogState.value = FileDialogState.Share(
+                    file = file,
+                    link = link
+                )
+            }.onFailure { throwable ->
+                _message.emit(throwable.message ?: "分享失败")
+            }
         }
     }
 

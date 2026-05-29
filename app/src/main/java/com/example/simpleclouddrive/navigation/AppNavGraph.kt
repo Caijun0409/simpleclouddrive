@@ -21,6 +21,8 @@ object AppRoute {
     const val Share = "share/{shareId}"
 
     fun reader(fileId: String): String = "reader/${Uri.encode(fileId)}"
+
+    fun share(shareId: String): String = "share/${Uri.encode(shareId)}"
 }
 
 @Composable
@@ -77,7 +79,11 @@ fun AppNavGraph(
             )
         ) { backStackEntry ->
             ShareFileScreen(
-                shareId = backStackEntry.arguments?.getString("shareId").orEmpty()
+                shareId = backStackEntry.arguments?.getString("shareId").orEmpty(),
+                fileRepository = fileRepository,
+                onOpenReader = { fileId ->
+                    navController.navigate(AppRoute.reader(fileId))
+                }
             )
         }
     }

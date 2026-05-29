@@ -16,11 +16,14 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.simpleclouddrive.domain.repository.FileRepository
 import com.example.simpleclouddrive.navigation.AppNavGraph
+import com.example.simpleclouddrive.navigation.AppRoute
 import com.example.simpleclouddrive.navigation.BottomNavItem
 
 @Composable
 fun SimpleCloudApp(
-    fileRepository: FileRepository
+    fileRepository: FileRepository,
+    pendingShareId: String? = null,
+    onPendingShareConsumed: () -> Unit = {}
 ) {
     val navController = rememberNavController()
     val bottomNavItems = listOf(
@@ -35,6 +38,12 @@ fun SimpleCloudApp(
 
     LaunchedEffect(fileRepository) {
         fileRepository.initializeIfNeeded()
+    }
+
+    LaunchedEffect(pendingShareId) {
+        val shareId = pendingShareId ?: return@LaunchedEffect
+        navController.navigate(AppRoute.share(shareId))
+        onPendingShareConsumed()
     }
 
     Scaffold(

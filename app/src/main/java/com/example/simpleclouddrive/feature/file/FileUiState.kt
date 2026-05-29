@@ -27,4 +27,9 @@ sealed interface FileDialogState {
         val targetFolders: List<CloudFile> = emptyList(),
         val isLoading: Boolean = true
     ) : FileDialogState
+
+    data class Share(
+        val file: CloudFile,
+        val link: String
+    ) : FileDialogState
 }
