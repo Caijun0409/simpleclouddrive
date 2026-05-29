@@ -22,6 +22,7 @@ class AppContainer(context: Context) {
 
     val fileRepository: FileRepository = FileRepositoryImpl(
         cloudFileDao = database.cloudFileDao(),
+        recentBrowseDao = database.recentBrowseDao(),
         recentTransferDao = database.recentTransferDao(),
         fakeCloudApi = fakeCloudApi,
         fileStorageManager = fileStorageManager

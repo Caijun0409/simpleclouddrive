@@ -34,7 +34,15 @@ class FileStorageManager(
 
     suspend fun deletePrivateFile(path: String): Boolean = withContext(ioDispatcher) {
         val targetFile = File(path)
-        targetFile.exists() && targetFile.delete()
+        targetFile.exists() && targetFile.isFile && targetFile.delete()
+    }
+
+    fun isPrivateCloudFile(path: String): Boolean {
+        val cloudDir = File(context.filesDir, CLOUD_DIR_NAME)
+        val targetFile = File(path)
+        return runCatching {
+            targetFile.canonicalPath.startsWith(cloudDir.canonicalPath + File.separator)
+        }.getOrDefault(false)
     }
 
     suspend fun getFileSize(uri: Uri): Long = withContext(ioDispatcher) {

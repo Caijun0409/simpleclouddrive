@@ -14,4 +14,7 @@ interface RecentTransferDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(recentTransfer: RecentTransferEntity)
+
+    @Query("DELETE FROM recent_transfer WHERE fileId IN (:fileIds)")
+    suspend fun deleteByFileIds(fileIds: List<String>)
 }

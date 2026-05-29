@@ -14,4 +14,7 @@ interface RecentBrowseDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(recentBrowse: RecentBrowseEntity)
+
+    @Query("DELETE FROM recent_browse WHERE fileId IN (:fileIds)")
+    suspend fun deleteByFileIds(fileIds: List<String>)
 }

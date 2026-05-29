@@ -18,8 +18,13 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.InsertDriveFile
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.UploadFile
 import androidx.compose.material.icons.outlined.Videocam
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -31,12 +36,15 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -64,6 +72,7 @@ fun FileListRoute(
         factory = FileListViewModelFactory(fileRepository)
     )
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val dialogState by viewModel.dialogState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val openDocumentLauncher = rememberLauncherForActivityResult(
@@ -101,7 +110,20 @@ fun FileListRoute(
                 snackbarHostState.showSnackbar("准备打开视频")
             }
         },
+        onShareClick = viewModel::showSharePlaceholder,
+        onRenameClick = viewModel::showRenameDialog,
+        onMoveClick = viewModel::showMoveDialog,
+        onDeleteClick = viewModel::showDeleteDialog,
         modifier = modifier
+    )
+
+    FileOperationDialog(
+        dialogState = dialogState,
+        onRenameNameChange = viewModel::updateRenameName,
+        onConfirmRename = viewModel::confirmRename,
+        onConfirmDelete = viewModel::confirmDelete,
+        onConfirmMove = viewModel::confirmMove,
+        onDismiss = viewModel::dismissDialog
     )
 }
 
@@ -115,6 +137,10 @@ fun FileListScreen(
     onFolderClick: (CloudFile) -> Unit,
     onTxtClick: (CloudFile) -> Unit,
     onVideoClick: (CloudFile) -> Unit,
+    onShareClick: (CloudFile) -> Unit,
+    onRenameClick: (CloudFile) -> Unit,
+    onMoveClick: (CloudFile) -> Unit,
+    onDeleteClick: (CloudFile) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -171,7 +197,11 @@ fun FileListScreen(
                     files = uiState.files,
                     onFolderClick = onFolderClick,
                     onTxtClick = onTxtClick,
-                    onVideoClick = onVideoClick
+                    onVideoClick = onVideoClick,
+                    onShareClick = onShareClick,
+                    onRenameClick = onRenameClick,
+                    onMoveClick = onMoveClick,
+                    onDeleteClick = onDeleteClick
                 )
             }
         }
@@ -208,11 +238,189 @@ private fun BreadcrumbRow(
 }
 
 @Composable
+private fun FileOperationDialog(
+    dialogState: FileDialogState,
+    onRenameNameChange: (String) -> Unit,
+    onConfirmRename: () -> Unit,
+    onConfirmDelete: () -> Unit,
+    onConfirmMove: (String?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    when (dialogState) {
+        FileDialogState.None -> Unit
+        is FileDialogState.Rename -> RenameDialog(
+            dialogState = dialogState,
+            onNameChange = onRenameNameChange,
+            onConfirm = onConfirmRename,
+            onDismiss = onDismiss
+        )
+        is FileDialogState.Delete -> DeleteDialog(
+            file = dialogState.file,
+            onConfirm = onConfirmDelete,
+            onDismiss = onDismiss
+        )
+        is FileDialogState.Move -> MoveDialog(
+            dialogState = dialogState,
+            onConfirmMove = onConfirmMove,
+            onDismiss = onDismiss
+        )
+    }
+}
+
+@Composable
+private fun RenameDialog(
+    dialogState: FileDialogState.Rename,
+    onNameChange: (String) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("重命名") },
+        text = {
+            OutlinedTextField(
+                value = dialogState.name,
+                onValueChange = onNameChange,
+                singleLine = true,
+                label = { Text("新名称") },
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("确定")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("取消")
+            }
+        }
+    )
+}
+
+@Composable
+private fun DeleteDialog(
+    file: CloudFile,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("删除") },
+        text = {
+            Text(
+                text = if (file.type == FileType.FOLDER) {
+                    "确定删除“${file.name}”及其中所有文件吗？"
+                } else {
+                    "确定删除“${file.name}”吗？"
+                }
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("删除")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("取消")
+            }
+        }
+    )
+}
+
+@Composable
+private fun MoveDialog(
+    dialogState: FileDialogState.Move,
+    onConfirmMove: (String?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("移动到") },
+        text = {
+            if (dialogState.isLoading) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                LazyColumn {
+                    item {
+                        MoveTargetItem(
+                            name = "根目录",
+                            enabled = dialogState.file.parentId != null,
+                            onClick = { onConfirmMove(null) }
+                        )
+                    }
+                    items(
+                        items = dialogState.targetFolders,
+                        key = { folder -> folder.fileId }
+                    ) { folder ->
+                        MoveTargetItem(
+                            name = folder.name,
+                            enabled = dialogState.file.parentId != folder.fileId,
+                            onClick = { onConfirmMove(folder.fileId) }
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("取消")
+            }
+        }
+    )
+}
+
+@Composable
+private fun MoveTargetItem(
+    name: String,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    ListItem(
+        modifier = Modifier.clickable(
+            enabled = enabled,
+            onClick = onClick
+        ),
+        leadingContent = {
+            Icon(
+                imageVector = Icons.Outlined.Folder,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+        },
+        headlineContent = {
+            Text(
+                text = name,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = if (enabled) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
+            )
+        }
+    )
+}
+
+@Composable
 private fun FileListContent(
     files: List<CloudFile>,
     onFolderClick: (CloudFile) -> Unit,
     onTxtClick: (CloudFile) -> Unit,
-    onVideoClick: (CloudFile) -> Unit
+    onVideoClick: (CloudFile) -> Unit,
+    onShareClick: (CloudFile) -> Unit,
+    onRenameClick: (CloudFile) -> Unit,
+    onMoveClick: (CloudFile) -> Unit,
+    onDeleteClick: (CloudFile) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize()
@@ -230,7 +438,11 @@ private fun FileListContent(
                         FileType.VIDEO -> onVideoClick(file)
                         FileType.OTHER -> Unit
                     }
-                }
+                },
+                onShareClick = { onShareClick(file) },
+                onRenameClick = { onRenameClick(file) },
+                onMoveClick = { onMoveClick(file) },
+                onDeleteClick = { onDeleteClick(file) }
             )
             HorizontalDivider()
         }
@@ -240,8 +452,14 @@ private fun FileListContent(
 @Composable
 private fun FileListItem(
     file: CloudFile,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onShareClick: () -> Unit,
+    onRenameClick: () -> Unit,
+    onMoveClick: () -> Unit,
+    onDeleteClick: () -> Unit
 ) {
+    var menuExpanded by remember(file.fileId) { mutableStateOf(false) }
+
     ListItem(
         modifier = Modifier.clickable(onClick = onClick),
         leadingContent = {
@@ -281,6 +499,47 @@ private fun FileListItem(
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.weight(1f))
+            }
+        },
+        trailingContent = {
+            IconButton(onClick = { menuExpanded = true }) {
+                Icon(
+                    imageVector = Icons.Outlined.MoreVert,
+                    contentDescription = "更多操作"
+                )
+            }
+            DropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = { menuExpanded = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("分享") },
+                    onClick = {
+                        menuExpanded = false
+                        onShareClick()
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("重命名") },
+                    onClick = {
+                        menuExpanded = false
+                        onRenameClick()
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("移动") },
+                    onClick = {
+                        menuExpanded = false
+                        onMoveClick()
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("删除") },
+                    onClick = {
+                        menuExpanded = false
+                        onDeleteClick()
+                    }
+                )
             }
         }
     )

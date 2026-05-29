@@ -4,6 +4,7 @@ import android.net.Uri
 import android.util.Log
 import com.example.simpleclouddrive.data.local.FileStorageManager
 import com.example.simpleclouddrive.data.local.dao.CloudFileDao
+import com.example.simpleclouddrive.data.local.dao.RecentBrowseDao
 import com.example.simpleclouddrive.data.local.dao.RecentTransferDao
 import com.example.simpleclouddrive.data.local.entity.CloudFileEntity
 import com.example.simpleclouddrive.data.local.entity.RecentTransferEntity
@@ -22,6 +23,7 @@ import kotlinx.coroutines.withContext
 
 class FileRepositoryImpl(
     private val cloudFileDao: CloudFileDao,
+    private val recentBrowseDao: RecentBrowseDao,
     private val recentTransferDao: RecentTransferDao,
     private val fakeCloudApi: FakeCloudApi,
     private val fileStorageManager: FileStorageManager,
@@ -88,12 +90,102 @@ class FileRepositoryImpl(
         }
     }
 
+    override suspend fun renameFile(fileId: String, newName: String) {
+        withContext(ioDispatcher) {
+            val trimmedName = newName.trim()
+            require(trimmedName.isNotEmpty()) { "文件名不能为空" }
+            val file = cloudFileDao.getFileById(fileId) ?: error("文件不存在")
+            cloudFileDao.updateName(
+                fileId = file.fileId,
+                name = trimmedName,
+                modifiedAt = System.currentTimeMillis()
+            )
+        }
+    }
+
+    override suspend fun deleteFile(fileId: String) {
+        withContext(ioDispatcher) {
+            val file = cloudFileDao.getFileById(fileId) ?: error("文件不存在")
+            val filesToDelete = collectDescendants(file)
+            val fileIds = filesToDelete.map { entity -> entity.fileId }
+
+            filesToDelete
+                .filter { entity -> entity.type != FileType.FOLDER.name }
+                .filter { entity -> fileStorageManager.isPrivateCloudFile(entity.path) }
+                .forEach { entity -> fileStorageManager.deletePrivateFile(entity.path) }
+
+            recentBrowseDao.deleteByFileIds(fileIds)
+            recentTransferDao.deleteByFileIds(fileIds)
+            cloudFileDao.deleteByIds(fileIds)
+        }
+    }
+
+    override suspend fun moveFile(fileId: String, targetParentId: String?) {
+        withContext(ioDispatcher) {
+            val file = cloudFileDao.getFileById(fileId) ?: error("文件不存在")
+            if (targetParentId == file.fileId) {
+                error("不能移动到自己")
+            }
+            val targetFolder = targetParentId?.let { id ->
+                val folder = cloudFileDao.getFileById(id) ?: error("目标文件夹不存在")
+                require(folder.type == FileType.FOLDER.name) { "目标不是文件夹" }
+                folder
+            }
+            if (file.type == FileType.FOLDER.name && targetFolder != null) {
+                require(!isDescendant(folderId = file.fileId, candidateId = targetFolder.fileId)) {
+                    "不能移动到自己的子文件夹"
+                }
+            }
+
+            cloudFileDao.updateParent(
+                fileId = file.fileId,
+                parentId = targetParentId,
+                modifiedAt = System.currentTimeMillis()
+            )
+        }
+    }
+
+    override suspend fun getMoveTargetFolders(excludeFileId: String): List<CloudFile> {
+        return withContext(ioDispatcher) {
+            val file = cloudFileDao.getFileById(excludeFileId) ?: error("文件不存在")
+            cloudFileDao.getAllFolders()
+                .filter { folder -> folder.fileId != file.fileId }
+                .filter { folder ->
+                    file.type != FileType.FOLDER.name ||
+                        !isDescendant(folderId = file.fileId, candidateId = folder.fileId)
+                }
+                .map { entity -> entity.toDomain() }
+        }
+    }
+
     private fun resolveFileType(mimeType: String?, displayName: String): FileType {
         val lowerName = displayName.lowercase()
         return when {
             mimeType == "text/plain" || lowerName.endsWith(".txt") -> FileType.TXT
             mimeType?.startsWith("video/") == true -> FileType.VIDEO
             else -> FileType.OTHER
+        }
+    }
+
+    private suspend fun collectDescendants(root: CloudFileEntity): List<CloudFileEntity> {
+        val result = mutableListOf<CloudFileEntity>()
+        suspend fun visit(file: CloudFileEntity) {
+            result += file
+            if (file.type == FileType.FOLDER.name) {
+                cloudFileDao.getFilesByParentId(file.fileId).forEach { child ->
+                    visit(child)
+                }
+            }
+        }
+        visit(root)
+        return result
+    }
+
+    private suspend fun isDescendant(folderId: String, candidateId: String): Boolean {
+        val children = cloudFileDao.getFilesByParentId(folderId)
+        return children.any { child ->
+            child.fileId == candidateId ||
+                (child.type == FileType.FOLDER.name && isDescendant(child.fileId, candidateId))
         }
     }
 

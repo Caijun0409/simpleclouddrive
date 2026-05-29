@@ -12,4 +12,12 @@ interface FileRepository {
     suspend fun getFileById(fileId: String): CloudFile?
 
     suspend fun uploadLocalFile(uri: Uri, parentId: String?): CloudFile
+
+    suspend fun renameFile(fileId: String, newName: String)
+
+    suspend fun deleteFile(fileId: String)
+
+    suspend fun moveFile(fileId: String, targetParentId: String?)
+
+    suspend fun getMoveTargetFolders(excludeFileId: String): List<CloudFile>
 }
